@@ -147,13 +147,40 @@ You can follow these steps to generate a PageIndex tree from a PDF document.
 pip3 install --upgrade -r requirements.txt
 ```
 
-### 2. Set your OpenAI API key
+### 2. Set your API key (OpenRouter recommended)
 
-Create a `.env` file in the root directory and add your API key:
+Create a `.env` file in the root directory. For OpenRouter:
 
 ```bash
-CHATGPT_API_KEY=your_openai_key_here
+OPENROUTER_API_KEY=your_openrouter_key_here
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ```
+
+You can also keep using legacy OpenAI-compatible env vars (`CHATGPT_API_KEY` / `OPENAI_API_KEY`).
+
+
+
+### OpenRouter demos (CLI + simple frontend)
+
+**A) CLI demo** (`demos/openrouter_pageindex_demo.py`):
+
+```bash
+python3 demos/openrouter_pageindex_demo.py \
+  --pdf_path tests/pdfs/earthmover.pdf \
+  --question "What does the document say about earthmoving efficiency?" \
+  --model moonshotai/kimi-k2
+```
+
+**B) Frontend demo (Streamlit)** (`demos/openrouter_streamlit_demo.py`):
+
+```bash
+pip3 install -r demos/requirements-demo.txt
+streamlit run demos/openrouter_streamlit_demo.py
+```
+
+The frontend lets you upload a PDF, build the PageIndex tree, and ask questions in a simple UI.
+
+> Tip: copy `.env.example` to `.env` and paste your `OPENROUTER_API_KEY`.
 
 ### 3. Run PageIndex on your PDF
 

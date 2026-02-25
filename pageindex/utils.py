@@ -17,18 +17,58 @@ import yaml
 from pathlib import Path
 from types import SimpleNamespace as config
 
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+LLM_API_KEY = os.getenv("LLM_API_KEY")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+LLM_BASE_URL = os.getenv("LLM_BASE_URL")
+
+
+def resolve_api_key(explicit_api_key=None):
+    return explicit_api_key or OPENROUTER_API_KEY or LLM_API_KEY or CHATGPT_API_KEY or OPENAI_API_KEY
+
+
+def resolve_base_url(api_key, explicit_base_url=None):
+    if explicit_base_url:
+        return explicit_base_url
+    if LLM_BASE_URL:
+        return LLM_BASE_URL
+    if api_key == OPENROUTER_API_KEY and OPENROUTER_BASE_URL:
+        return OPENROUTER_BASE_URL
+    return None
+
+
+def create_sync_client(api_key=None, base_url=None):
+    final_api_key = resolve_api_key(api_key)
+    final_base_url = resolve_base_url(final_api_key, base_url)
+    client_kwargs = {"api_key": final_api_key}
+    if final_base_url:
+        client_kwargs["base_url"] = final_base_url
+    return openai.OpenAI(**client_kwargs)
+
+
+def create_async_client(api_key=None, base_url=None):
+    final_api_key = resolve_api_key(api_key)
+    final_base_url = resolve_base_url(final_api_key, base_url)
+    client_kwargs = {"api_key": final_api_key}
+    if final_base_url:
+        client_kwargs["base_url"] = final_base_url
+    return openai.AsyncOpenAI(**client_kwargs)
 
 def count_tokens(text, model=None):
     if not text:
         return 0
-    enc = tiktoken.encoding_for_model(model)
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except Exception:
+        enc = tiktoken.get_encoding("cl100k_base")
     tokens = enc.encode(text)
     return len(tokens)
 
-def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def ChatGPT_API_with_finish_reason(model, prompt, api_key=None, chat_history=None):
     max_retries = 10
-    client = openai.OpenAI(api_key=api_key)
+    client = create_sync_client(api_key=api_key)
     for i in range(max_retries):
         try:
             if chat_history:
@@ -58,9 +98,9 @@ def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_
 
 
 
-def ChatGPT_API(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def ChatGPT_API(model, prompt, api_key=None, chat_history=None):
     max_retries = 10
-    client = openai.OpenAI(api_key=api_key)
+    client = create_sync_client(api_key=api_key)
     for i in range(max_retries):
         try:
             if chat_history:
@@ -86,12 +126,12 @@ def ChatGPT_API(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
                 return "Error"
             
 
-async def ChatGPT_API_async(model, prompt, api_key=CHATGPT_API_KEY):
+async def ChatGPT_API_async(model, prompt, api_key=None):
     max_retries = 10
     messages = [{"role": "user", "content": prompt}]
     for i in range(max_retries):
         try:
-            async with openai.AsyncOpenAI(api_key=api_key) as client:
+            async with create_async_client(api_key=api_key) as client:
                 response = await client.chat.completions.create(
                     model=model,
                     messages=messages,
